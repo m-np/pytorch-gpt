@@ -1,0 +1,40 @@
+name: Format code
+
+on: pull_request
+              
+jobs:
+  format:
+    # Check if the PR is not from a fork
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          ref: ${{ github.head_ref }}
+      - name: Check username
+        run: |
+          echo ${{ github.actor }}
+          echo ${{ github.actor }}@users.noreply.github.com
+      - name: Format code with black
+        run: |
+          pip install black
+          black .
+      - name: Sort imports with isort
+        run: |
+          pip install isort
+          isort .
+      - name: Remove unused imports with autoflake
+        run: |
+          pip install autoflake
+          autoflake --in-place --remove-all-unused-imports --remove-unused-variables --recursive .
+      - name: Check for modified files
+        id: git-check
+        run: echo "modified=$(if git diff-index --quiet HEAD --; then echo "false"; else echo "true"; fi)" >> $GITHUB_OUTPUT
+      - name: Push changes
+        if: steps.git-check.outputs.modified == 'true'
+        run: |
+          git config --global user.name ${{ github.actor }}
+          git config --global user.email ${{ github.actor }}@users.noreply.github.com
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+          git commit -am "Automated changes"
+          git push
